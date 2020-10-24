@@ -5,3 +5,109 @@ date: "10/20/2020"
 output: github_document
 ---
 
+```{r setup, echo = FALSE, warning = FALSE, message = FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+library(tidyverse)
+library(readxl)
+library(gridExtra)
+```
+
+
+```{r}
+dog_df = read_excel("./data/dogweights_07sept2020.xlsx")
+```
+
+# Probalem 1
+**Introduction and Goal of the Report**
+
+The raw data record the weights of three dogs named "Simon, Gagne, and Raisin" over 2 years with a standard object weighed on a dedicated scale. There are `r nrow(dog_df)` rows and `r ncol(dog_df)` columns. Observations are weight records of the three dogs through time.  It also includes occasional notes mainly  is time spent in a kennel.
+
+The goal of the report is to 
+
+**Import, tidy, and clean the data**
+* create a tibble for month name change
+* "read_excel" read the excel, "skip" skip the first raw, "col_types" set the column type  
+* use function clean_names() in janitor packages to clean data  
+* drop the row based on the missing values in var. 'raisin,simone, gagne'
+* change the variable type by mutate()
+* join two data frame by left_join()
+* delete columns by select(-*)
+```{r month_name}
+month_df = tibble(month = 1:12, month_name = month.name) 
+```
+
+```{r year_month_date}
+#separate the variable "date" to three columns "year, month, date"
+dog_df = read_excel("./data/dogweights_07sept2020.xlsx", skip = 1, col_types = c("date", "guess", "guess", "guess", "guess", "text")) %>% 
+  janitor::clean_names() %>% 
+  drop_na(raisin) %>% 
+  separate(date, c("year", "month", "date")) %>% 
+  mutate(month = as.integer(month)) %>% 
+  left_join(month_df, by = "month") %>% 
+  select(-month, -x6) %>% 
+  select(year, month_name, everything()) 
+```
+
+* change the weights unit from lbs_oz to lbs for three dogs and the standard object
+* separate one column to two by separate()
+* transfer oz to lbs by oz/16
+
+```{r}
+weight_df = dog_df %>% 
+  #change the weights unit from lbs_oz to labs for dog raisin
+  separate(raisin, into = c("lbs", "oz"), sep = 2) %>% 
+  mutate(
+    lbs = as.numeric(lbs),
+    oz = as.numeric(oz),
+    raisin_lbs = lbs + oz/16) %>% 
+  select(-lbs, -oz) %>% 
+  separate(simone, into = c("lbs", "oz"), sep = 2) %>% 
+  mutate(
+    lbs = as.numeric(lbs),
+    oz = as.numeric(oz),
+    simone_lbs = lbs + oz/16) %>% 
+  select(-lbs, -oz) %>% 
+  separate(gagne, into = c("lbs", "oz"), sep = 2) %>% 
+  mutate(
+    lbs = as.numeric(lbs),
+    oz = as.numeric(oz),
+    gagne_lbs = lbs + oz/16) %>% 
+  select(-lbs, -oz) %>% 
+  separate(std, into = c("lbs", "oz"), sep = 2) %>% 
+  mutate(
+    lbs = as.numeric(lbs),
+    oz = as.numeric(oz),
+    std_lbs = lbs + oz/16) %>% 
+  select(-lbs, -oz) %>% 
+print()
+```
+
+
+**A dataframe include notes with date**
+* change the variable name to "notes" by mutate()
+* drop the row based on the missing values in var. 'notes' 
+
+```{r}
+notes_df = read_excel("./data/dogweights_07sept2020.xlsx", skip = 1, col_types = c("date", "guess", "guess", "guess", "guess", "text")) %>% 
+  janitor::clean_names() %>% 
+  drop_na(raisin) %>%
+  mutate(notes = x6) %>%
+  drop_na(notes) %>%  
+  select(date, notes) %>% 
+  separate(date, c("year", "month", "date")) %>% 
+  mutate(month = as.integer(month)) %>% 
+  left_join(month_df, by = "month") %>% 
+  select(-month) %>% 
+  select(year, month_name, everything())
+print(notes_df)
+```
+
+**export data frame**
+* export the two data fram named weight_df and notes_df as CSVs by function write.csv. 
+* save the CSVs to the same directory as the raw data in working directory by giving the path
+
+```{r export df}
+write.csv(weight_df, "./data/weight.xlsx")
+write.csv(notes_df, "./data/notes.xlsx")
+```
+
