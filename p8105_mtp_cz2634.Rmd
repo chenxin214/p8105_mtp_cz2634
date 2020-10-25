@@ -49,32 +49,39 @@ The raw data record the weights of three dogs named "Simon, Gagne, and Raisin" o
 
 dog_df = read_excel("./data/dogweights_07sept2020.xlsx", skip = 1, col_types = c("date", "guess", "guess", "guess", "guess", "text")) %>% 
   janitor::clean_names() %>% 
-  drop_na(raisin) %>% 
   select(-x6) %>% 
   separate(raisin, into = c("lbs", "oz"), sep = 2) %>% 
   mutate(
     lbs = as.numeric(lbs),
     oz = as.numeric(oz),
-    raisin_lbs = lbs + oz/16) %>% 
+    raisin = lbs + oz/16) %>% 
   select(-lbs, -oz) %>% 
   separate(simone, into = c("lbs", "oz"), sep = 2) %>% 
   mutate(
     lbs = as.numeric(lbs),
     oz = as.numeric(oz),
-    simone_lbs = lbs + oz/16) %>% 
+    simone = lbs + oz/16) %>% 
   select(-lbs, -oz) %>% 
   separate(gagne, into = c("lbs", "oz"), sep = 2) %>% 
   mutate(
     lbs = as.numeric(lbs),
     oz = as.numeric(oz),
-    gagne_lbs = lbs + oz/16) %>% 
+    gagne = lbs + oz/16) %>% 
   select(-lbs, -oz) %>% 
   separate(std, into = c("lbs", "oz"), sep = 2) %>% 
   mutate(
     lbs = as.numeric(lbs),
     oz = as.numeric(oz),
-    std_lbs = lbs + oz/16) %>% 
-  select(-lbs, -oz) 
+    std = lbs + oz/16) %>% 
+  select(-lbs, -oz) %>% 
+  pivot_longer(
+    raisin:gagne,
+    names_to = "dog_name",
+    values_to = "weight_lbs") %>%
+  drop_na(weight_lbs) %>% 
+   relocate(
+    std, .after = weight_lbs 
+  ) 
 ```
 
 ```{r month_name}
@@ -104,7 +111,6 @@ print()
 #drop the row based on the missing values in var. 'notes'
 notes_df = read_excel("./data/dogweights_07sept2020.xlsx", skip = 1, col_types = c("date", "guess", "guess", "guess", "guess", "text")) %>% 
   janitor::clean_names() %>% 
-  drop_na(raisin) %>%
   mutate(notes = x6) %>%
   drop_na(notes) %>%  
   select(date, notes) %>% 
@@ -132,29 +138,27 @@ write.csv(notes_df, "./data/notes.csv")
 
 **summary of the weight**
 
+
 ```{r}
-#calculate the mean and sd of each and every column, ignoring missing values
+#drop the value of 7.9375
 dog_df2 = 
   dog_df %>% 
-  select(-std_lbs) %>% 
-  pivot_longer(
-    raisin_lbs:gagne_lbs,
-    names_to = "dog_name",
-    values_to = "weight_lbs") %>% 
-  filter(weight_lbs != "7.9375") %>% #drop the value of 7.9375
-  drop_na()
+  select(-std) %>% 
+   filter(weight_lbs != "7.9375")  
 ```
 
 ```{r}
+#mean, observation, SD with drop of '7.93' in raisin
 dog_df3 = dog_df2 %>% 
   group_by(dog_name) %>%
   summarize(mean_weight = mean(weight_lbs, na.rm = TRUE),
             sd_weight = sd(weight_lbs, na.rm = TRUE),
             observation = n()) %>% 
-  knitr::kable(digits = 1) #creat a table and the digits and put one place to the decimal
+  knitr::kable(digits = 1) 
 print(dog_df3)
 ```
-* The data frame 'dog_df3'  shows a summary about the number of total observation, average weight and the standard deviation for each dog. There are `r nrow(dog_df$gagne_lbs)` observations for gagne, `r (nrow(dog_df$raisin_lbs))-1` valid observations for raisin, and `r nrow(dog_df$simone_lbs)` observations for Simone. The mean weight of Raisin is 18.3, while it will be 18.2 if we do not drop the miss record value '7.9375'. The mean weights of Gagne and Simone are very close which are 10.3 and 10.4 respectively. Both weight values of Gagne and Raisin have a SD of 0.7, and the SD of weight value of Simone is 0.4, which reflects weight values of Gagne and Raisin are more spread from mean than that of Simone. Simone has a relatively stable weight than the other.
+* The data frame 'dog_df3'  shows a summary about the number of total observation, average weight and the standard deviation for each dog. There were 202 observations for Raisin, while the effective observations are 201 since we delete one miss recorded value. 
+The mean weight of Raisin is 18.3, while it will be 18.2 if we do not drop the miss record value '7.9375'. The mean weights of Gagne and Simone are very close which are 10.3 and 10.4 respectively. Both weight values of Gagne and Raisin have a SD of 0.7, and the SD of weight value of Simone is 0.4, which reflects weight values of Gagne and Raisin are more spread from mean than that of Simone. Simone has a relatively stable weight than the other.
 
 ## Problem 3 Visualization
 **two-panel plot**
@@ -206,8 +210,7 @@ weight_time = dog_df2 %>%
 (weight_dis + weight_time)+ plot_layout(widths = 10, heights = 20)
 ```
 
-
-* By visualizing, we can more clearly see the weight difference among the three dogs, and the weight distribution over time. Raisin is almost two times heavy than the other two dogs. The right pannel shows when time close to the death of Gagne, he lost weight over time from average 10 lbs to finally 8 lbs. Raisin and Simmon have very similar weight gain or lose trend over the two years. When one gain/lose weight, the other also gain/lose weight. Ao a summary, the fluctuation of weight of Raisin and Simmon are smooth over time.
+* By visualizing, we can more clearly see the weight difference among the three dogs. Raisin is almost two times heavy than the other two dogs, and the mean weight of Gagne and Simone are similar with some overlapping. The right pannel shows when time close to the death of Gagne, he lost weight over time from average 10 lbs to finally 8 lbs. Some outliers exit in Simmone's data, totally, the trend line reflects the reality. Raisin and Simmon have very similar weight gain or lose trend over the two years. 
 
 
 
