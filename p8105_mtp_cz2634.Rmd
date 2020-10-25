@@ -7,7 +7,7 @@ output: github_document
 
 ```{r setup, echo = FALSE, warning = FALSE, message = FALSE}
 knitr::opts_chunk$set(
-  echo = FALSE, warning = FALSE, message = FALSE,
+ warning = FALSE, message = FALSE,
   fig.width = 6,
   fig.asp = .6,
   out.width = "90%")
@@ -30,7 +30,7 @@ scale_fill_discrete = scale_fill_viridis_d
 ```
 
 
-```{r}
+```{r echo = FALSE}
 dog_df = read_excel("./data/dogweights_07sept2020.xlsx")
 ```
 
@@ -74,8 +74,7 @@ dog_df = read_excel("./data/dogweights_07sept2020.xlsx", skip = 1, col_types = c
     lbs = as.numeric(lbs),
     oz = as.numeric(oz),
     std_lbs = lbs + oz/16) %>% 
-  select(-lbs, -oz) %>% 
-print()
+  select(-lbs, -oz) 
 ```
 
 ```{r month_name}
@@ -93,7 +92,8 @@ weight_df = dog_df %>%
   mutate(month = as.integer(month)) %>% 
   left_join(month_df, by = "month") %>% 
   select(-month) %>% 
-  select(year, month_name, everything()) 
+  select(year, month_name, everything()) %>% 
+print()
 ```  
 * The data frame 'weight_df' is more tidy and readable. It delete rows where there is no record for weight of all three dogs, but keep rows when at least one weight is recorded. 
 
