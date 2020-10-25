@@ -14,6 +14,8 @@ knitr::opts_chunk$set(
 library(tidyverse)
 library(readxl)
 library(gridExtra)
+library(ggridges)
+library(patchwork)
 
 theme_set(theme_minimal() + theme(legend.position = "bottom"))
 options(
@@ -29,7 +31,7 @@ scale_fill_discrete = scale_fill_viridis_d
 dog_df = read_excel("./data/dogweights_07sept2020.xlsx")
 ```
 
-# Probalem 1
+## Probalem 1
 **Introduction and Goal of the Report**
 
 The raw data record the weights of three dogs named "Simon, Gagne, and Raisin" over 2 years with a standard object weighed on a dedicated scale. There are `r nrow(dog_df)` rows and `r ncol(dog_df)` columns. Observations are weight records of the three dogs through time.  It also includes occasional notes mainly  is time spent in a kennel.
@@ -37,36 +39,17 @@ The raw data record the weights of three dogs named "Simon, Gagne, and Raisin" o
 The goal of the report is to 
 
 **Import, tidy, and clean the data**
-* create a tibble for month name change
-* "read_excel" read the excel, "skip" skip the first raw, "col_types" set the column type  
-* use function clean_names() in janitor packages to clean data  
-* drop the row based on the missing values in var. 'raisin,simone, gagne'
-* change the variable type by mutate()
-* join two data frame by left_join()
-* delete columns by select(-*)
-```{r month_name}
-month_df = tibble(month = 1:12, month_name = month.name) 
-```
 
-```{r year_month_date}
-#separate the variable "date" to three columns "year, month, date"
+```{r}
+#change the weights unit from lbs_oz to lbs for three dogs and the standard object
+#read the excel, "skip" skip the first raw, "col_types" set the column type  
+#use function clean_names() in janitor packages to clean data  
+#drop the row based on the missing values in var. 'raisin,simone, gagne
+
 dog_df = read_excel("./data/dogweights_07sept2020.xlsx", skip = 1, col_types = c("date", "guess", "guess", "guess", "guess", "text")) %>% 
   janitor::clean_names() %>% 
   drop_na(raisin) %>% 
-  separate(date, c("year", "month", "date")) %>% 
-  mutate(month = as.integer(month)) %>% 
-  left_join(month_df, by = "month") %>% 
-  select(-month, -x6) %>% 
-  select(year, month_name, everything()) 
-```
-
-* change the weights unit from lbs_oz to lbs for three dogs and the standard object
-* separate one column to two by separate()
-* transfer oz to lbs by oz/16
-
-```{r}
-weight_df = dog_df %>% 
-  #change the weights unit from lbs_oz to labs for dog raisin
+  select(-x6) %>% 
   separate(raisin, into = c("lbs", "oz"), sep = 2) %>% 
   mutate(
     lbs = as.numeric(lbs),
@@ -94,12 +77,30 @@ weight_df = dog_df %>%
 print()
 ```
 
+```{r month_name}
+month_df = tibble(month = 1:12, month_name = month.name) 
+```
 
-**A dataframe include notes with date**
-* change the variable name to "notes" by mutate()
-* drop the row based on the missing values in var. 'notes' 
+```{r weight_df}
+#transfer oz to lbs by oz/16
+#separate the variable "date" to three columns "year, month, date"
+#change the variable type by mutate()
+#join two data frame by left_join()
+#delete columns by select(-*)
+weight_df = dog_df %>% 
+  separate(date, c("year", "month", "date")) %>% 
+  mutate(month = as.integer(month)) %>% 
+  left_join(month_df, by = "month") %>% 
+  select(-month) %>% 
+  select(year, month_name, everything()) 
+```
+
+
+**A dataframe that includes notes with date**
 
 ```{r}
+#change the variable name to "notes" by mutate()
+#drop the row based on the missing values in var. 'notes'
 notes_df = read_excel("./data/dogweights_07sept2020.xlsx", skip = 1, col_types = c("date", "guess", "guess", "guess", "guess", "text")) %>% 
   janitor::clean_names() %>% 
   drop_na(raisin) %>%
@@ -113,36 +114,105 @@ notes_df = read_excel("./data/dogweights_07sept2020.xlsx", skip = 1, col_types =
   select(year, month_name, everything())
 print(notes_df)
 ```
+* In this part, we produce a new data frame that include notes over time. There are totall `r nrow(notes_df)` notes which records mainly the place changes where the dogs live. All three dogs had hair cut on 10/15/2018. Raisin and Simone had another hair cut on 5/23/2020, while Gagne hadn't because of the pass away. 
 
-**export data frame**
-* export the two data fram named weight_df and notes_df as CSVs by function write.csv. 
-* save the CSVs to the same directory as the raw data in working directory by giving the path
+
+**export data frame**  
+* In this part, we export the two data frame named ‘weight_df’ and ‘notes_df’ as CSVs by function 'write.csv'. Save the CSVs to the same directory as the raw data in working directory by giving the relative path.
 
 ```{r export df}
-write.csv(weight_df, "./data/weight.xlsx")
-write.csv(notes_df, "./data/notes.xlsx")
+write.csv(weight_df, "./data/weight.csv")
+write.csv(notes_df, "./data/notes.csv")
 ```
 
-# Probalem 2
-**Briefly describe the resulting tidy dataset containing weights**
-The weights data recording the weights of the three dogs and a standard object has `r nrow(weight_df)` rows and `r ncol(weight_df)` columns.  There are `r nrow(weight_df)` unique dates are included in the dataset.
+## Probalem 2
+**Briefly describe the resulting tidy dataset containing weights**  
+* The weights data recording the weights of the three dogs and a standard object has `r nrow(weight_df)` rows and `r ncol(weight_df)` columns.  There are `r nrow(weight_df)` unique dates are included in the dateset. By observation the raw data, there is a miss record value of weight for raisin. The weight of raisin on 8/14/2019 is 7.9375 lbs while the records on near dates are all about 17.93. To analyze the data accurately, the analysis below will drop the miss recorded value.
 
 **summary of the weight**
 
 ```{r}
 #calculate the mean and sd of each and every column, ignoring missing values
-dogs_df = 
-  weight_df %>% 
-  mutate_at(vars(raisin_lbs:std_lbs), as.character) %>% 
+dog_df2 = 
+  dog_df %>% 
+  select(-std_lbs) %>% 
   pivot_longer(
-    raisin_lbs:std_lbs,
+    raisin_lbs:gagne_lbs,
     names_to = "dog_name",
     values_to = "weight_lbs") %>% 
-  mutate(weight_lbs = as.integer(weight_lbs)) %>% 
+  filter(weight_lbs != "7.9375") %>% #drop the value of 7.9375
+  drop_na()
+```
+
+```{r}
+dog_df3 = dog_df2 %>% 
   group_by(dog_name) %>%
   summarize(mean_weight = mean(weight_lbs, na.rm = TRUE),
             sd_weight = sd(weight_lbs, na.rm = TRUE),
             observation = n()) %>% 
   knitr::kable(digits = 1) #creat a table and the digits and put one place to the decimal
+print(dog_df3)
 ```
+* The data frame 'dog_df3'  shows a summary about the number of total observation, average weight and the standard deviation for each dog. There are `r nrow(dog_df$gagne_lbs)` observations for gagne, `r (nrow(dog_df$raisin_lbs))-1` valid observations for raisin, and `r nrow(dog_df$simone_lbs)` obsevations for Simone. The mean weight of Raisin is 18.3, while it will be 18.2 if we do not drop the miss record value '7.9375'. The mean weights of Gagne and Simone are very close which are 10.3 and 10.4 respectively. Both weight values of Gagne and Raisin have a standart deviation of 0.7, and the SD of weight value of Simone is 0.4. This data reflects weight values of Gagne and Raisin are more spread from mean than that of Simone. Simone has a relatively stable weight.
+
+## Probalem 3 Visualization
+**two-panel plot**
+
+```{r weight_dis}
+weight_dis = dog_df2 %>%
+  group_by(dog_name, weight_lbs) %>% 
+  summarize(count = n()) %>% 
+  ggplot(aes(x = weight_lbs, y = count, color = dog_name)) +
+  geom_point(aes(group = dog_name), alpha = 0.6, size = 2) +
+  geom_smooth(se = FALSE) +
+  theme(
+    plot.title = element_text(lineheight = 4, color = "black", size = 20),
+    axis.text.x = element_text(angle = 0, vjust = 0.5, hjust = 1, size = 10)) +
+  labs(title = "The distribution of weights for each dog",
+    x = "weight_lbs",
+    y = "count") +
+  scale_x_continuous(
+    breaks = seq(8,20,1), 
+    labels = as.character(c(8:20))) +
+  viridis::scale_color_viridis(discrete = TRUE)
+```
+
+
+```{r weight_over_time}
+weight_time = dog_df2 %>% 
+  ggplot(aes(x = date, y = weight_lbs)) + 
+  geom_point(aes(color = dog_name), alpha = .6, size = 2) +
+  scale_y_continuous(breaks = c(8, 10, 12, 14,16,18,20,22),
+                     labels = c("8", "10", "12", "14", "16", "18", "20", "22"))+
+  theme(
+    axis.text.y = element_text(vjust = 0.5, hjust = 1, size = 10),
+    axis.text.x = element_text(angle = -90, vjust = 0.5, hjust = 1, size = 10))+
+  labs(
+    title = "Weight distrubution over time",
+    x = "date",
+    y = "weight_lbs",
+    caption = "Data from the a friend of Jeff") +
+   viridis::scale_color_viridis(
+    name = "Location", 
+    discrete = TRUE
+)
+
+```
+
+```{r}
+(weight_dis + weight_time)+ plot_layout(widths = 10, heights = 20)
+```
+
+The weight_dis plot shows the distribution of weights of each dog.
+
+
+
+The weight_time plot shows the distribition of weight of each dog over time.
+
+
+
+
+
+
+
 
